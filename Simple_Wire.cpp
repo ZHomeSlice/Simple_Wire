@@ -32,7 +32,6 @@ Simple_Wire::Simple_Wire() {
 #elif defined(ESP32)
     
 #else
-    Wire.setWireTimeout(3000, true); //timeout value in uSec
     
 #endif
 
