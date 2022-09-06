@@ -49,6 +49,15 @@ class Simple_Wire{
     public:
         uint8_t devAddr;
         int32_t Val;
+        uint8_t ErrorMessage = 0;
+        /*
+        0 Success
+        1 Data to long to fit into transmit buffer
+        2 Received NACK on transmission of address
+        3 Received NACK on transmission of data
+        4 Other Error
+        5 Timeout
+        */
         Simple_Wire();
         Simple_Wire(uint8_t bus_num);
         Simple_Wire & SetAddress(uint8_t address);
@@ -110,7 +119,8 @@ class Simple_Wire{
         uint16_t Value(uint16_t * V){return(V[0]);};
         int16_t Value(int16_t * V){return(V[0]);};
         int32_t Value(){return(Val);};
-
+        uint8_t GetErrorMessage() {return ErrorMessage;};
+        bool Success() {return(ErrorMessage == 0);}
         Simple_Wire & Delay( uint32_t ms ){delay(ms); return *this;};
     private:
         uint8_t FirstByteShift = 8;

@@ -91,7 +91,7 @@ Simple_Wire & Simple_Wire::ReadBytes(uint8_t AltAddress,uint8_t regAddr, uint8_t
      for (int k = 0; k < length; k += min((int)length, WIRE_BUFFER_LENGTH)) {
         Wire.beginTransmission(AltAddress);
         Wire.write(regAddr);
-        Wire.endTransmission();
+        ErrorMessage = Wire.endTransmission();
         Wire.requestFrom((uint8_t)AltAddress, (uint8_t)min((int)length - k, WIRE_BUFFER_LENGTH));
         for (; Wire.available(); I2CReadCount++) {
             Data[I2CReadCount] = Wire.read();
@@ -124,7 +124,7 @@ Simple_Wire & Simple_Wire::ReadInts(uint8_t AltAddress,uint8_t regAddr, uint8_t 
         for (uint8_t k = 0; k < size * 2; k += min(size * 2, WIRE_BUFFER_LENGTH)) {
             Wire.beginTransmission(AltAddress);
             Wire.write(regAddr);
-            Wire.endTransmission();
+            ErrorMessage = Wire.endTransmission();
             Wire.requestFrom(AltAddress, (uint8_t)(size * 2)); // length=words, this wants bytes
             for (; Wire.available() && I2CReadCount < size; ) {
                 Data[I2CReadCount] = Wire.read() << FirstByteShift;
@@ -156,7 +156,7 @@ Simple_Wire & Simple_Wire::ReadUInts(uint8_t AltAddress, uint8_t regAddr, uint8_
         for (uint8_t k = 0; k < size * 2; k += min(size * 2, WIRE_BUFFER_LENGTH)) {
             Wire.beginTransmission(AltAddress);
             Wire.write(regAddr);
-            Wire.endTransmission();
+            ErrorMessage = Wire.endTransmission();
             Wire.requestFrom(AltAddress, (uint8_t)(size * 2)); // length=words, this wants bytes
             for (; Wire.available() && I2CReadCount < size; ) {
                 Data[I2CReadCount] = Wire.read() << FirstByteShift ;
@@ -226,7 +226,7 @@ Simple_Wire & Simple_Wire::WriteBytes(uint8_t AltAddress,uint8_t regAddr, uint8_
     for (; I2CWriteCount < length; I2CWriteCount++) {
             Wire.write((uint8_t) Data[I2CWriteCount]);
     }
-    Wire.endTransmission();
+    ErrorMessage = Wire.endTransmission();
     return *this;
 }
 
@@ -253,7 +253,7 @@ Simple_Wire & Simple_Wire::WriteInts(uint8_t AltAddress,uint8_t regAddr, uint8_t
         Wire.write((int8_t)(Data[I2CWriteCount] >> FirstByteShift));    // send MSB
         Wire.write((int8_t)(Data[I2CWriteCount] >> SecondByteShift)) ;  // send LSB
     }
-    Wire.endTransmission();
+    ErrorMessage = Wire.endTransmission();
 	return *this;
 }
 
@@ -279,7 +279,7 @@ Simple_Wire & Simple_Wire::WriteUInts(uint8_t AltAddress, uint8_t regAddr, uint8
         Wire.write((uint8_t)(Data[I2CWriteCount] >> FirstByteShift));    // send MSB
         Wire.write((uint8_t)(Data[I2CWriteCount] >> SecondByteShift)) ;  // send LSB
     }
-    Wire.endTransmission();
+    ErrorMessage = Wire.endTransmission();
 	return *this;
 }
 
@@ -312,5 +312,5 @@ uint8_t Simple_Wire::Find_Address(uint8_t Address,uint8_t Limit){
 
 uint8_t Simple_Wire::Check_Address(uint8_t Address){
 		Wire.beginTransmission(Address);
-		return(Wire.endTransmission() == 0);
+		return(ErrorMessage = Wire.endTransmission() == 0);
 }
