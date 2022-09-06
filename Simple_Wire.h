@@ -48,6 +48,7 @@ THE SOFTWARE.
 class Simple_Wire{
     public:
         uint8_t devAddr;
+        int32_t Val;
         Simple_Wire();
         Simple_Wire(uint8_t bus_num);
         Simple_Wire & SetAddress(uint8_t address);
@@ -104,10 +105,11 @@ class Simple_Wire{
         Simple_Wire & I2C_Scanner();
         uint8_t Find_Address(uint8_t Address,uint8_t Limit );
         uint8_t Check_Address(uint8_t Address);
-        uint8_t Value(uint8_t * V){return(V[0])};
-        int8_t Value(int8_t * V){return(V[0])};
-        uint16_t Value(uint16_t * V){return(V[0])};
-        int16_t Value(int16_t * V){return(V[0])};
+        uint8_t Value(uint8_t * V){return(V[0]);};
+        int8_t Value(int8_t * V){return(V[0]);};
+        uint16_t Value(uint16_t * V){return(V[0]);};
+        int16_t Value(int16_t * V){return(V[0]);};
+        int32_t Value(){return(Val);};
 
         Simple_Wire & Delay( uint32_t ms ){delay(ms); return *this;};
     private:

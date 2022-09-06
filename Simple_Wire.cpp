@@ -67,6 +67,7 @@ Simple_Wire & Simple_Wire::ReadBit(uint8_t AltAddress, uint8_t regAddr, uint8_t 
             Data[0] = b;
         }
     }
+    Val = (int32_t) Data[0];
 	return *this;
 }
 
@@ -96,6 +97,7 @@ Simple_Wire & Simple_Wire::ReadBytes(uint8_t AltAddress,uint8_t regAddr, uint8_t
             Data[I2CReadCount] = Wire.read();
         }
     }
+    Val = (int32_t) Data[0];
    	return *this;
 }
 
@@ -130,6 +132,7 @@ Simple_Wire & Simple_Wire::ReadInts(uint8_t AltAddress,uint8_t regAddr, uint8_t 
                 I2CReadCount++;
             }
         }
+    Val = (int32_t) Data[0];
     return *this;
 }
 
@@ -161,6 +164,7 @@ Simple_Wire & Simple_Wire::ReadUInts(uint8_t AltAddress, uint8_t regAddr, uint8_
                 I2CReadCount++;
             }
         }
+    Val = (int32_t) Data[0];
     return *this;
 }
 
