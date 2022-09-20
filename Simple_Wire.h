@@ -59,7 +59,8 @@ class Simple_Wire{
         5 Timeout
         */
         Simple_Wire();
-        Simple_Wire(uint8_t bus_num);
+       // Simple_Wire(int sdaPin , int sclPin );
+        void begin(int sdaPin = 0, int sclPin = 1);
         Simple_Wire & SetAddress(uint8_t address);
         Simple_Wire & SetIntMSBPos(bool FirstRead); // is the most Significant Bit Red First?
         // read functions
@@ -131,5 +132,6 @@ class Simple_Wire{
 };
 
 extern TwoWire Wire;
+extern TwoWire Wire1;
 
 #endif 
