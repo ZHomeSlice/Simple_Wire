@@ -128,6 +128,8 @@ class Simple_Wire{
         uint8_t SecondByteShift = 0;    
         uint8_t I2CReadCount;
         uint8_t I2CWriteCount;
+        uint8_t _sdaPin;
+        uint8_t _sclPin;
 
 };
 

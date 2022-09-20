@@ -23,7 +23,13 @@ THE SOFTWARE.
 */ 
 #include "Simple_Wire.h"
 #include <Wire.h>
-
+#ifdef __AVR__
+    #define _Yield 
+#elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_ARCH_RP2040)
+    #define _Yield  yield();
+#else
+    #define _Yield  
+#endif
 /*
 Simple_Wire::Simple_Wire(int sdaPin, int sclPin) { // Constructor
 #ifdef __AVR__
@@ -50,15 +56,20 @@ Simple_Wire::Simple_Wire() {// Constructor
 
 
 void Simple_Wire::begin(int sdaPin, int sclPin) {
+
 #ifdef __AVR__
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
     Wire.setWireTimeout(3000, true); //timeout value in uSec
-    #define _Yield 
 #elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_ARCH_RP2040)
-    Wire.begin(sdaPin,sclPin,(uint32_t)400000); // 400kHz I2C clock. \
-    #define _Yield  yield();
+    Wire.begin(sdaPin,sclPin,(uint32_t)400000); // 400kHz I2C clock.
+#else  
+    Wire.begin();
+    Wire.setClock(400000); // 400kHz I2C clock.
+    
 #endif
+    _sdaPin = sdaPin;
+    _sclPin = sclPin;
 }
 
 Simple_Wire &  Simple_Wire::SetAddress(uint8_t address) {
