@@ -23,23 +23,17 @@ THE SOFTWARE.
 */ 
 #include "Simple_Wire.h"
 #include <Wire.h>
-#ifdef __AVR__
-    #define _Yield 
-#elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_ARCH_RP2040)
-    #define _Yield  yield();
-#else
-    #define _Yield  
-#endif
+
 /*
 Simple_Wire::Simple_Wire(int sdaPin, int sclPin) { // Constructor
 #ifdef __AVR__
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
     Wire.setWireTimeout(3000, true); //timeout value in uSec
-    #define _Yield 
+    #define yield(); 
 #elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_ARCH_RP2040)
     Wire.begin(sdaPin,sclPin,(uint32_t)400000); // 400kHz I2C clock. \
-    #define _Yield  yield();
+    #define yield();  yield();
 #endif
 }
 */
@@ -188,7 +182,7 @@ Simple_Wire & Simple_Wire::ReadUInts(uint8_t regAddr, uint8_t size, uint16_t *Da
 
 Simple_Wire & Simple_Wire::ReadUInts(uint8_t AltAddress, uint8_t regAddr, uint8_t size, uint16_t *Data) {
     I2CReadCount = 0;
-    _Yield
+    yield();
         for (uint8_t k = 0; k < size * 2; k += min(size * 2, WIRE_BUFFER_LENGTH)) {
             Wire.beginTransmission(AltAddress);
             Wire.write(regAddr);
@@ -200,7 +194,7 @@ Simple_Wire & Simple_Wire::ReadUInts(uint8_t AltAddress, uint8_t regAddr, uint8_
                 I2CReadCount++;
             }
         }
-    _Yield
+    yield();
     Val = (int32_t) Data[0];
     return *this;
 }
@@ -284,7 +278,7 @@ Simple_Wire & Simple_Wire::WriteInts(uint8_t regAddr, uint8_t size, int16_t *Dat
 }
 Simple_Wire & Simple_Wire::WriteInts(uint8_t AltAddress,uint8_t regAddr, uint8_t size, int16_t *Data) {
     I2CWriteCount = 0;
-    _Yield    
+    yield();    
     Wire.beginTransmission(AltAddress);
     Wire.write(regAddr); // send address
     for (; I2CWriteCount < size; I2CWriteCount++) { 
@@ -292,7 +286,7 @@ Simple_Wire & Simple_Wire::WriteInts(uint8_t AltAddress,uint8_t regAddr, uint8_t
         Wire.write((int8_t)(Data[I2CWriteCount] >> SecondByteShift)) ;  // send LSB
     }
     ErrorMessage = Wire.endTransmission();
-    _Yield    
+    yield();    
 	return *this;
 }
 
@@ -312,7 +306,7 @@ Simple_Wire & Simple_Wire::WriteUInts(uint8_t regAddr, uint8_t size, uint16_t *D
 }
 Simple_Wire & Simple_Wire::WriteUInts(uint8_t AltAddress, uint8_t regAddr, uint8_t size, uint16_t *Data) {
     I2CWriteCount = 0;
-    _Yield
+    yield();
     Wire.beginTransmission(AltAddress);
     Wire.write(regAddr); // send address
     for (; I2CWriteCount < size; I2CWriteCount++) { 
@@ -320,7 +314,7 @@ Simple_Wire & Simple_Wire::WriteUInts(uint8_t AltAddress, uint8_t regAddr, uint8
         Wire.write((uint8_t)(Data[I2CWriteCount] >> SecondByteShift)) ;  // send LSB
     }
     ErrorMessage = Wire.endTransmission();
-    _Yield
+    yield();
 	return *this;
 }
 
@@ -328,7 +322,7 @@ Simple_Wire & Simple_Wire::WriteUInts(uint8_t AltAddress, uint8_t regAddr, uint8
 
 Simple_Wire & Simple_Wire::I2C_Scanner(){
 	Serial.println(F("Scanning for Addresses on the i2c Buss:"));
-    _Yield
+    yield();
 	for (int x = 0;x < 128;x++){
         if((x%8) != 0)Serial.print(",");
         if(Check_Address(x)) {
