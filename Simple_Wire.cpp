@@ -60,6 +60,7 @@ void Simple_Wire::begin(int sdaPin, int sclPin) {
 #elif defined(ARDUINO_ARCH_RP2040)
     Wire.setSCL(sclPin);
     Wire.setSDA(sdaPin);
+    Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
 #else  
     Wire.begin();
