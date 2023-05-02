@@ -13,3 +13,19 @@
 <p>The <code>ReadInt()</code> method is used to read a 16-bit integer from a device register. The <code>ReadInts()</code> method is used to read multiple 16-bit integers. The <code>ReadUInt()</code> and <code>ReadUInts()</code> methods are similar, but are used for unsigned integers.</p>
 <p>The <code>WriteBit()</code> method is used to write a single bit to a device register. The <code>WriteByte()</code> method is used to write a single byte. The <code>WriteBytes()</code> method is used to write multiple bytes.</p>
 <p>The <code>WriteInt()</code> method is used to write a 16-bit integer to a device register. The <code>WriteInts()</code> method is used to write multiple 16-bit integers. The <code>WriteUInt()</code> and <code>WriteUInts()</code> methods are similar, but are used for unsigned integers.</p>
+
+<p>Macros can be used to quickly gather data from the desired registers for example:
+<code>
+#define R_LIA_Data(Data) PG(0).ReadInts(0x28, 3, (int16_t *)Data)//   Linear Acceleration Data.
+#define R_LIA_Data_X(Data) PG(0).ReadInt(0x28, (int16_t *)Data)  //   Linear Acceleration Data X <15:0>
+#define R_LIA_Data_Y(Data) PG(0).ReadInt(0x2A, (int16_t *)Data)  //   Linear Acceleration Data Y <15:0>
+#define R_LIA_Data_Z(Data) PG(0).ReadInt(0x2C, (int16_t *)Data)  //   Linear Acceleration Data Z <15:0></code></p>
+<p>Here is an explanation of the code:</p>
+<ul>
+  <li>The code defines a set of macros for reading data from a device register using the Simple_Wire library.</li>
+  <li>The macros use the ReadInt() and ReadInts() methods of the Simple_Wire class to read data from the specified register address.</li>
+  <li>The macro R_LIA_Data() reads all 3 INTs of data in one go and stores the result in the specified array.</li>
+  <li>The macros R_LIA_Data_X(), R_LIA_Data_Y(), and R_LIA_Data_Z() read individual INTs of data for each axis.</li>
+  <li>Using these macros simplifies the process of reading data from the device register, reducing the amount of code required.</li>
+</ul>
+<p>Overall, this approach allows for easy and efficient access to the device register with minimal code.</p>
