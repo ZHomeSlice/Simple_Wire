@@ -1,2 +1,2 @@
 # Simple_Wire
- TowWire Library Helper Functions
+ TwoWire Library Helper Functions
