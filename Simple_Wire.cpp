@@ -117,7 +117,7 @@ Simple_Wire & Simple_Wire::ReadBytes(uint8_t regAddr, uint8_t length, uint8_t *D
 
 Simple_Wire & Simple_Wire::ReadBytes(uint8_t AltAddress,uint8_t regAddr, uint8_t length, uint8_t *Data) {
     I2CReadCount = 0;
-     for (int k = 0; k < length; k += min((int)length, WIRE_BUFFER_LENGTH)) {
+     for (uint8_t k = 0; k < length; k += min((int)length, WIRE_BUFFER_LENGTH)) {
         Wire.beginTransmission(AltAddress);
         Wire.write(regAddr);
         ErrorMessage = Wire.endTransmission();
