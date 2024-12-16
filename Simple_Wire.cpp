@@ -55,8 +55,13 @@ void Simple_Wire::begin(int sdaPin, int sclPin) {
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
     Wire.setWireTimeout(3000, true); //timeout value in uSec
-#elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_ARCH_RP2040)
+#elif defined(ESP8266) || defined(ESP32) 
     Wire.begin(sdaPin,sclPin,(uint32_t)400000); // 400kHz I2C clock.
+#elif defined(ARDUINO_ARCH_RP2040)
+    Wire.setSCL(sclPin);
+    Wire.setSDA(sdaPin);
+    Wire.begin();
+    Wire.setClock(400000); // 400kHz I2C clock.
 #else  
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
