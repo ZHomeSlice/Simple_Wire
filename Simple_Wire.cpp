@@ -19,8 +19,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+Version 2.0 3-3-2025 Streamlined, added features and improved performance
 ===============================================
 */
+
 #include "Simple_Wire.h"
 #include <Wire.h>
 
@@ -60,7 +62,7 @@ Simple_Wire &Simple_Wire::I2C_Scanner()
     if(!_Begin) return *this;
     byte error, address;
     int nDevices;
-    Serial.println("\nScanning I2C...");
+    Serial.println("\nScanning I2C for any device...");
     nDevices = 0;
     for (address = 1; address < 128; address++)
     {
@@ -89,17 +91,21 @@ uint8_t Simple_Wire::Find_Address(uint8_t Address, uint8_t Limit)
     yield();
     do
     {
-        Serial.println(Address, HEX);
+      //  Serial.println(Address, HEX);
         if (Check_Address(Address))
             return Address;
-    } while (Limit != Address++);
+    } while (Limit >= Address++);
     return 0;
 }
 
 // checks to see if the address is active and returns true if successful
 uint8_t Simple_Wire::Check_Address(uint8_t Address)
 {
-    if(!_Begin) return 0;
+    if(!_Begin) return false;
+    if(Verbose){
+        Serial.print("Checking Address: 0x");
+        Serial.println(Address, HEX);
+    }
     Wire.beginTransmission(Address);
     return ((ErrorMessage = Wire.endTransmission()) == 0);
 }
@@ -125,22 +131,32 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
     return *this;
 }
 
-// Write Byte Bits
+// Write Bits using Bit number and length
 
 template <typename T>
-Simple_Wire &Simple_Wire::WriteBitSkipTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val)
+Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val)
+{
+    if (length == 1)
+        b = (Val != 0) ? (b | (static_cast<T>(1) << bitNum)) : (b & ~(static_cast<T>(1) << bitNum));
+    else
+    {
+        T mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
+        Val <<= (bitNum - length + 1); // shift Data into correct position
+    }
+    WriteBitMaskTemplate<T>( AltAddress,  regAddr, SkipRead, Mask,  Val)
+    return *this;
+}
+
+// Write Bits using mask
+template <typename T>
+Simple_Wire &Simple_Wire::WriteBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, bool SkipRead,T Mask, T Val)
 {
     T b = 0;
     if (!SkipRead)
         TRead<T>(AltAddress, regAddr, 1, sizeof(T), &b);
-    if (I2CReadCount)
+    if (SkipRead !! I2CReadCount)
     {
-        if (length == 1)
-            b = (Val != 0) ? (b | (static_cast<T>(1) << bitNum)) : (b & ~(static_cast<T>(1) << bitNum));
-        else
         {
-            T mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
-            Val <<= (bitNum - length + 1); // shift Data into correct position
             Val &= mask;                   // zero all non-important bits in Data
             b &= ~(mask);                  // clear the bits in existing value
             b |= Val;                      // merge the new bits
@@ -149,6 +165,8 @@ Simple_Wire &Simple_Wire::WriteBitSkipTemplate(uint8_t AltAddress, uint8_t regAd
     }
     return *this;
 }
+
+
 
 // These Template functions are private and that will eliminate the possibility of Unsupported data types
 // Template version that works for both signed and unsigned 16-bit types.
@@ -217,8 +235,10 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
 }
 
 
-template Simple_Wire& Simple_Wire::WriteBitSkipTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint8_t);
-template Simple_Wire& Simple_Wire::WriteBitSkipTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint16_t);
+template Simple_Wire& Simple_Wire::WriteBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint8_t);
+template Simple_Wire& Simple_Wire::WriteBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint16_t);
+template Simple_Wire& Simple_Wire::WriteBitMaskTemplate(uint8_t , uint8_t , bool ,uint8_t , uint8_t);
+template Simple_Wire& Simple_Wire::WriteBitMaskTemplate(uint8_t , uint8_t , bool ,uint16_t , uint16_t);
 template Simple_Wire& Simple_Wire::TWrite<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*);
 template Simple_Wire& Simple_Wire::TWrite<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t*);
 template Simple_Wire& Simple_Wire::TWrite<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t*);
@@ -237,13 +257,5 @@ template Simple_Wire& Simple_Wire::TRead<uint32_t>(uint8_t, uint8_t, uint8_t, ui
 template Simple_Wire& Simple_Wire::TRead<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t*);
 template Simple_Wire& Simple_Wire::TRead<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t*);
 
-const __FlashStringHelper * const i2cErrorMessages[] = {
-    F("Success"),
-    F("Data too long to fit in transmit buffer"),
-    F("Received NACK on transmit of address"),
-    F("Received NACK on transmit of data"),
-    F("Other error"),
-    F("Timeout")
-  };
 
 

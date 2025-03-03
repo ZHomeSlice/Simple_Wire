@@ -57,17 +57,20 @@ private:
     template <typename T>
     Simple_Wire &ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, T *Data);
     template <typename T>
-    Simple_Wire &WriteBitSkipTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val);
+    Simple_Wire &WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val);
+    template <typename T>
+    Simple_Wire &WriteBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, bool SkipRead,T Mask, T Val);
     template <typename T>
     Simple_Wire &TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t ByteC, T *Data);
     template <typename T>
     Simple_Wire &TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t ByteC, T *Data);
     static const __FlashStringHelper * const i2cErrorMessages[5];
-      
-public:
+    bool Verbose = false;
     uint8_t devAddr = 0;
     uint64_t Val = 0;
     uint8_t ErrorMessage = 0;
+      
+public:
     /*
     0 Success
     1 Data to long to fit into transmit buffer
@@ -245,19 +248,17 @@ public:
 
     // Helper functions
     Simple_Wire &I2C_Scanner();
+    
+    uint8_t Find_Address(uint8_t Limit = 128){return Find_Address(devAddr, Limit);};
     uint8_t Find_Address(uint8_t Address, uint8_t Limit);
+    uint8_t Check_Address(){return Check_Address(devAddr);};
     uint8_t Check_Address(uint8_t Address);
     uint64_t Value() { return (Val); };
     uint8_t GetErrorMessage() { return ErrorMessage; };
-    const __FlashStringHelper * GetErrorMessageString() const { return i2cErrorMessages[ErrorMessage];};
     bool Success() { return (ErrorMessage == 0); }
-    Simple_Wire &Delay(uint32_t ms)
-    {
-        delay(ms);
-        return *this;
-    };
-
-
+    Simple_Wire &Delay(uint32_t ms){delay(ms);return *this;};
+    Simple_Wire &This_Wire(){return *this;};
+    Simple_Wire & SetVerbose(bool V = true){Verbose = V; return *this;};
 };
 
 extern TwoWire Wire;
