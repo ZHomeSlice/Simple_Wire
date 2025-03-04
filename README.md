@@ -112,7 +112,7 @@ You can define macros that wrap common read/write operations for specific regist
   
   **Checking and Troubleshooting**:
   Checking address and verifying read and write and viewing the error code can all be done easily by adding a helper function like .Success() at the end of your call which will return true if successful
-  Example usage `if(!BNO055.R_LIA_Data_X(&Data).Success()) Serial.Print("We Failed to read the integer");`
+  Example usage `if(BNO055.R_LIA_Data_X(&Data).Success()) Serial.Print("We have successfully read the integer");`
   
 ## Advanced Usage 
 - **Timeout and Error Handling**:  
