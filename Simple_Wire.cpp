@@ -37,16 +37,19 @@ void Simple_Wire::begin(int sdaPin, int sclPin)
     _Begin =  true;
 #ifdef __AVR__
     Wire.begin();
+
     Wire.setClock(400000);           // 400kHz I2C clock.
     Wire.setWireTimeout(3000, true); // timeout value in uSec
 #elif defined(ESP8266) || defined(ESP32)
     Wire.begin(sdaPin, sclPin, (uint32_t)400000); // 400kHz I2C clock.
+
 #elif defined(ARDUINO_ARCH_RP2040)
     Wire.setSCL(sclPin);
     Wire.setSDA(sdaPin);
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.    
 #else
+
     Wire.begin();
     Wire.setClock(400000); // 400kHz I2C clock.
 
@@ -133,6 +136,7 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
 
 // Write Bits using Bit number and length
 
+
 template <typename T>
 Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val)
 {
@@ -142,6 +146,7 @@ Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, 
     {
         T mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
         Val <<= (bitNum - length + 1); // shift Data into correct position
+
     }
     WriteBitMaskTemplate<T>( AltAddress,  regAddr, SkipRead, Mask,  Val)
     return *this;
@@ -256,6 +261,3 @@ template Simple_Wire& Simple_Wire::TRead<int32_t>(uint8_t, uint8_t, uint8_t, uin
 template Simple_Wire& Simple_Wire::TRead<uint32_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint32_t*);
 template Simple_Wire& Simple_Wire::TRead<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t*);
 template Simple_Wire& Simple_Wire::TRead<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t*);
-
-
-
