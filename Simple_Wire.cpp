@@ -117,6 +117,7 @@ template <typename T>
 Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, T *Data)
 {
     T b = 0;
+    T Mask;
     TRead<T>(AltAddress, regAddr, 1, sizeof(T), &b);
     if (I2CReadCount != 0)
     {
@@ -124,8 +125,8 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
             Data[0] = ((b & (1 << bitNum)) > 0);
         else
         {
-            T mask = ((1 << length) - 1) << (bitNum - length + 1);
-            b &= mask;
+            Mask = ((1 << length) - 1) << (bitNum - length + 1);
+            b &= Mask;
             b >>= (bitNum - length + 1);
             Data[0] = b;
         }
@@ -140,30 +141,32 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
 template <typename T>
 Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val)
 {
+    T b = 0;
+    T Mask;
     if (length == 1)
         b = (Val != 0) ? (b | (static_cast<T>(1) << bitNum)) : (b & ~(static_cast<T>(1) << bitNum));
     else
     {
-        T mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
+        Mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
         Val <<= (bitNum - length + 1); // shift Data into correct position
 
     }
-    WriteBitMaskTemplate<T>( AltAddress,  regAddr, SkipRead, Mask,  Val)
+    WriteBitMaskTemplate<T>( AltAddress,  regAddr, SkipRead, Mask,  Val);
     return *this;
 }
 
 // Write Bits using mask
 template <typename T>
-Simple_Wire &Simple_Wire::WriteBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, bool SkipRead,T Mask, T Val)
+Simple_Wire &Simple_Wire::WriteBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, bool SkipRead, T Mask, T Val)
 {
     T b = 0;
     if (!SkipRead)
         TRead<T>(AltAddress, regAddr, 1, sizeof(T), &b);
-    if (SkipRead !! I2CReadCount)
+    if (SkipRead != I2CReadCount)
     {
         {
-            Val &= mask;                   // zero all non-important bits in Data
-            b &= ~(mask);                  // clear the bits in existing value
+            Val &= Mask;                   // zero all non-important bits in Data
+            b &= ~(Mask);                  // clear the bits in existing value
             b |= Val;                      // merge the new bits
         }
         TWrite<T>(AltAddress, regAddr, 1, sizeof(T), &b);
@@ -239,7 +242,18 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
     return *this;
 }
 
+// Read
+template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint8_t*);
+template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint16_t*);
+template Simple_Wire& Simple_Wire::TRead<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*);
+template Simple_Wire& Simple_Wire::TRead<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t*);
+template Simple_Wire& Simple_Wire::TRead<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t*);
+template Simple_Wire& Simple_Wire::TRead<int32_t>(uint8_t, uint8_t, uint8_t, uint8_t, int32_t*);
+template Simple_Wire& Simple_Wire::TRead<uint32_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint32_t*);
+template Simple_Wire& Simple_Wire::TRead<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t*);
+template Simple_Wire& Simple_Wire::TRead<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t*);
 
+// Write
 template Simple_Wire& Simple_Wire::WriteBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint8_t);
 template Simple_Wire& Simple_Wire::WriteBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , bool , uint16_t);
 template Simple_Wire& Simple_Wire::WriteBitMaskTemplate(uint8_t , uint8_t , bool ,uint8_t , uint8_t);
@@ -252,12 +266,4 @@ template Simple_Wire& Simple_Wire::TWrite<uint32_t>(uint8_t, uint8_t, uint8_t, u
 template Simple_Wire& Simple_Wire::TWrite<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t*);
 template Simple_Wire& Simple_Wire::TWrite<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t*);
 
-template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint8_t*);
-template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint16_t*);
-template Simple_Wire& Simple_Wire::TRead<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*);
-template Simple_Wire& Simple_Wire::TRead<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t*);
-template Simple_Wire& Simple_Wire::TRead<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t*);
-template Simple_Wire& Simple_Wire::TRead<int32_t>(uint8_t, uint8_t, uint8_t, uint8_t, int32_t*);
-template Simple_Wire& Simple_Wire::TRead<uint32_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint32_t*);
-template Simple_Wire& Simple_Wire::TRead<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t*);
-template Simple_Wire& Simple_Wire::TRead<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t*);
+
