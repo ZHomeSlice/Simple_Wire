@@ -105,6 +105,7 @@ uint8_t Simple_Wire::Find_Address(uint8_t Address, uint8_t Limit)
 uint8_t Simple_Wire::Check_Address(uint8_t Address)
 {
     if(!_Begin) return false;
+    ErrorMessage = 0;
     if(Verbose){
         Serial.print("Checking Address: 0x");
         Serial.println(Address, HEX);
@@ -125,7 +126,8 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
             Data[0] = ((b & (1 << bitNum)) > 0);
         else
         {
-            Mask = ((1 << length) - 1) << (bitNum - length + 1);
+            
+            Mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
             b &= Mask;
             b >>= (bitNum - length + 1);
             Data[0] = b;
@@ -134,7 +136,19 @@ Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, u
     Val = (uint64_t)Data[0];  // Optionally assign first value to Val.
     return *this;
 }
-
+template <typename T>
+Simple_Wire &Simple_Wire::ReadBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, T Mask, T *Data)
+{
+    T b = 0;
+    TRead<T>(AltAddress, regAddr, 1, sizeof(T), &b);
+    if (I2CReadCount != 0)
+    {
+            b &= Mask;
+            Data[0] = b;
+    }
+    Val = (uint64_t)Data[0];  // Optionally assign first value to Val.
+    return *this;
+}
 // Write Bits using Bit number and length
 
 
@@ -143,13 +157,12 @@ Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, 
 {
     T b = 0;
     T Mask;
+    Mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
     if (length == 1)
         b = (Val != 0) ? (b | (static_cast<T>(1) << bitNum)) : (b & ~(static_cast<T>(1) << bitNum));
     else
     {
-        Mask = (((static_cast<T>(1) << length) - 1) << (bitNum - length + 1));
         Val <<= (bitNum - length + 1); // shift Data into correct position
-
     }
     WriteBitMaskTemplate<T>( AltAddress,  regAddr, SkipRead, Mask,  Val);
     return *this;
@@ -185,6 +198,7 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
 {
     if(!_Begin) return *this;
     I2CReadCount = 0;
+    ErrorMessage = 0;
     yield();
     byteCount  = constrain(byteCount, 1, 8);
     for (uint8_t k = 0; k < length * byteCount; k += min(length * byteCount, WIRE_BUFFER_LENGTH / byteCount))// Process data in chunks based on the Wire buffer length.
@@ -224,6 +238,7 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
 {
     if(!_Begin) return *this;
     I2CWriteCount = 0;
+    ErrorMessage = 0;
     yield();
     Wire.beginTransmission(AltAddress);
     Wire.write(regAddr); // send register address
@@ -243,8 +258,10 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
 }
 
 // Read
-template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint8_t*);
-template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t , uint8_t , uint8_t , uint8_t , uint16_t*);
+template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*);
+template Simple_Wire& Simple_Wire::ReadBitTemplate(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t*);
+template Simple_Wire& Simple_Wire::ReadBitMaskTemplate(uint8_t, uint8_t, uint8_t, uint8_t*);
+template Simple_Wire& Simple_Wire::ReadBitMaskTemplate(uint8_t, uint8_t, uint16_t, uint16_t*);
 template Simple_Wire& Simple_Wire::TRead<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*);
 template Simple_Wire& Simple_Wire::TRead<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t*);
 template Simple_Wire& Simple_Wire::TRead<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t*);
