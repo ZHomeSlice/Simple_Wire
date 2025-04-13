@@ -57,6 +57,8 @@ private:
     template <typename T>
     Simple_Wire &ReadBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, T *Data);
     template <typename T>
+    Simple_Wire &ReadBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, T mask, T *Data);
+    template <typename T>
     Simple_Wire &WriteBitTemplate(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, T Val);
     template <typename T>
     Simple_Wire &WriteBitMaskTemplate(uint8_t AltAddress, uint8_t regAddr, bool SkipRead,T Mask, T Val);
@@ -88,11 +90,15 @@ public:
 
     // Read functions
     // Read a Bytes worth of Bits
-    Simple_Wire &ReadBit(uint8_t regAddr, uint8_t length, uint8_t bitNum, uint8_t *Data) { return ReadBitTemplate<uint8_t>(devAddr, regAddr, length, bitNum, Data); };
-    Simple_Wire &ReadBit(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, uint8_t *Data){ return ReadBitTemplate<uint8_t>(AltAddress, regAddr, length, bitNum, Data);};
+    Simple_Wire &ReadBit(uint8_t regAddr, uint8_t length, uint8_t bitNum, uint8_t *Data) {return ReadBitTemplate<uint8_t>(devAddr, regAddr, length, bitNum, Data); };
+    Simple_Wire &ReadBit(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, uint8_t *Data){return ReadBitTemplate<uint8_t>(AltAddress, regAddr, length, bitNum, Data);};
+    Simple_Wire &ReadBitM(uint8_t regAddr, uint8_t mask, uint8_t *Data) {return ReadBitMaskTemplate<uint8_t>(devAddr, regAddr, mask, Data); };
+    Simple_Wire &ReadBitM(uint8_t AltAddress, uint8_t regAddr, uint8_t mask, uint8_t *Data){return ReadBitMaskTemplate<uint8_t>(AltAddress, regAddr, mask, Data);};
     // Read an Int worth of Bits
-    Simple_Wire &ReadIntBit(uint8_t regAddr, uint8_t length, uint8_t bitNum, uint16_t *Data) { return ReadBitTemplate<uint16_t>(devAddr, regAddr, length, bitNum, Data); };
-    Simple_Wire &ReadIntBit(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint16_t bitNum, uint16_t *Data){return ReadBitTemplate<uint16_t>(AltAddress, regAddr, length, bitNum, Data);};
+    Simple_Wire &ReadIntBit(uint8_t regAddr, uint8_t length, uint8_t bitNum, uint16_t *Data) {return ReadBitTemplate<uint16_t>(devAddr, regAddr, length, bitNum, Data); };
+    Simple_Wire &ReadIntBit(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, uint16_t *Data){return ReadBitTemplate<uint16_t>(AltAddress, regAddr, length, bitNum, Data);};
+    Simple_Wire &ReadIntBitM(uint8_t regAddr,  uint16_t mask, uint16_t *Data) {return ReadBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, Data); };
+    Simple_Wire &ReadIntBitM(uint8_t AltAddress, uint8_t regAddr, uint16_t mask, uint16_t *Data){return ReadBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, Data);};
     
     // Read Bytes
     // Read a Single signed byte
@@ -183,12 +189,12 @@ public:
     Simple_Wire &WriteIntBit(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, uint16_t Val) { return WriteBitTemplate<uint16_t>(AltAddress, regAddr, length, bitNum, false, Val); }; // Sets all other bits to 0
     Simple_Wire &WriteIntBitSkip(uint8_t AltAddress, uint8_t regAddr, uint8_t length, uint8_t bitNum, bool SkipRead, uint16_t Val){return WriteBitTemplate<uint16_t>(AltAddress, regAddr, length, bitNum, SkipRead, Val);};
 
-    Simple_Wire &WriteIntBitMX(uint8_t regAddr, uint8_t mask, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, true, Val); };                        // Alters only specific Bits by reading the int first
-    Simple_Wire &WriteIntBitM(uint8_t regAddr, uint8_t mask, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, false, Val); };                        // Sets all other bits to 0
-    Simple_Wire &WriteIntBitMSkip(uint8_t regAddr,  bool SkipRead, uint8_t mask, uint16_t Val){return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, SkipRead, Val);};
-    Simple_Wire &WriteIntBitMX(uint8_t AltAddress, uint8_t regAddr, uint8_t mask, uint8_t bitNum, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, true, Val); }; // Alters only specific Bits by reading the int first
-    Simple_Wire &WriteIntBitM(uint8_t AltAddress, uint8_t regAddr, uint8_t mask, uint8_t bitNum, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, false, Val); }; // Sets all other bits to 0
-    Simple_Wire &WriteIntBitMSkip(uint8_t AltAddress, uint8_t regAddr, bool SkipRead, uint8_t mask, uint16_t Val){return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, SkipRead, Val);};
+    Simple_Wire &WriteIntBitMX(uint8_t regAddr, uint16_t mask, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, true, Val); };                        // Alters only specific Bits by reading the int first
+    Simple_Wire &WriteIntBitM(uint8_t regAddr, uint16_t mask, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, false, Val); };                        // Sets all other bits to 0
+    Simple_Wire &WriteIntBitMSkip(uint8_t regAddr,  bool SkipRead, uint16_t mask, uint16_t Val){return WriteBitMaskTemplate<uint16_t>(devAddr, regAddr, mask, SkipRead, Val);};
+    Simple_Wire &WriteIntBitMX(uint8_t AltAddress, uint8_t regAddr, uint16_t mask,  uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, true, Val); }; // Alters only specific Bits by reading the int first
+    Simple_Wire &WriteIntBitM(uint8_t AltAddress, uint8_t regAddr, uint16_t mask, uint16_t Val) { return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, false, Val); }; // Sets all other bits to 0
+    Simple_Wire &WriteIntBitMSkip(uint8_t AltAddress, uint8_t regAddr, bool SkipRead, uint16_t mask, uint16_t Val){return WriteBitMaskTemplate<uint16_t>(AltAddress, regAddr, mask, SkipRead, Val);};
 
 
     // Write Signed Bytes
