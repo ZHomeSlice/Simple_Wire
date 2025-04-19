@@ -227,7 +227,8 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
         }
     }
     
-    Val = (uint64_t)Data[0]; // Optionally, assign the first value to Val.
+    Val = (uint64_t) Data[0]; // assign the first value to Val. use .Value() to retrieve the value and dont forget to cast it back to the type you are getting.
+                             // Example int16_t Data;  Serial.print((int16_t) INA.ReadInt(0x07U,&Data).value()); 
     return *this;
 }
 
