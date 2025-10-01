@@ -56,16 +56,94 @@ void Simple_Wire::begin(int sdaPin, int sclPin) {
   _sclPin = sclPin;
 }
 
+// ESP32 optimized WriteThenRead with repeated start (template version)
+template <typename T>
+Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t regAddr, T *readBuffer, uint8_t readLength) {
+  return TWriteThenRead(devAddr, regAddr, readBuffer, readLength);
+}
+
+template <typename T>
+Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t altAddress, uint8_t regAddr, T *readBuffer, uint8_t readLength) {
+  if (!_Begin) {
+    ErrorMessage = 4; // Not initialized
+    return *this;
+  }
+
+  I2CReadCount = 0;
+  ErrorMessage = 0;
+  yield();
+
+  // Calculate byte count for the template type
+  uint8_t byteCount = sizeof(T);
+  uint8_t totalBytes = readLength * byteCount;
+
+  // Write register address with repeated start
+  Wire.beginTransmission(altAddress);
+  Wire.write(regAddr);
+  ErrorMessage = Wire.endTransmission(false); // false = repeated start, no STOP
+
+  if (Success()) {
+    // Request data with timeout
+    Wire.requestFrom(static_cast<uint8_t>(altAddress), static_cast<size_t>(totalBytes), static_cast<bool>(true)); // send STOP after read
+
+    uint32_t startTime = millis();
+    uint8_t index = 0;
+
+    while (Wire.available() && index < readLength) {
+      readBuffer[index] = 0; // Clear the destination value
+      uint8_t byteVal = 0;
+
+      // Read bytes for this element
+      for (int8_t b = byteCount - 1; b >= 0; b--) {
+        uint8_t shift = ReverseByteShift ? (byteCount - 1 - b) * 8 : b * 8;
+        if (Wire.available()) {
+          byteVal = Wire.read();
+          readBuffer[index] |= ((uint64_t)byteVal << shift);
+        }
+      }
+      index++;
+
+      // Fail fast on timeout
+      if (millis() - startTime > _timeoutMs) {
+        ErrorMessage = 5; // Timeout
+        break;
+      }
+    }
+
+    I2CReadCount = index;
+    if (I2CReadCount != readLength) {
+      ErrorMessage = 4; // Incomplete read
+    }
+  }
+
+  return *this;
+}
+
+// Set timeout for operations
+Simple_Wire &Simple_Wire::SetTimeout(uint32_t timeoutMs) {
+  _timeoutMs = timeoutMs;
+  return *this;
+}
+
 // Scan for i2c Devices
 Simple_Wire &Simple_Wire::I2C_Scanner() {
   if (!_Begin)
     return *this;
   byte error, address;
   int nDevices;
+  uint32_t scanStartTime = millis();
+
   Serial.println("\nScanning I2C for any device...");
   nDevices = 0;
   for (address = 1; address < 128; address++) {
     yield();
+
+    // Check overall scan timeout
+    if (millis() - scanStartTime > _timeoutMs * 2) { // Allow 2x timeout for full scan
+      Serial.println("Scan timeout - stopping early");
+      break;
+    }
+
     if (Check_Address(address)) {
       Serial.print("device found at address 0x");
       Serial.println(address, HEX);
@@ -73,9 +151,11 @@ Simple_Wire &Simple_Wire::I2C_Scanner() {
     }
   }
   if (nDevices == 0) {
-    Serial.println("No I2C devices found\n");
+    Serial.println("No I2C devices found");
   } else {
-    Serial.println("done\n");
+    Serial.print(nDevices);
+    Serial.println(" I2C devices found");
+    Serial.println("done");
   }
   return *this;
 }
@@ -92,16 +172,26 @@ uint8_t Simple_Wire::Find_Address(uint8_t Address, uint8_t Limit) {
 }
 
 // checks to see if the address is active and returns true if successful
-uint8_t Simple_Wire::Check_Address(uint8_t Address) {
+uint8_t Simple_Wire::Check_Address(uint8_t Address, bool verbose) {
   if (!_Begin)
     return false;
   ErrorMessage = 0;
-  if (Verbose) {
+  if (Verbose || verbose) {
     Serial.print("Checking Address: 0x");
     Serial.println(Address, HEX);
   }
+
+  uint32_t startTime = millis();
   Wire.beginTransmission(Address);
-  return ((ErrorMessage = Wire.endTransmission()) == 0);
+
+  // Check timeout before endTransmission
+  if (millis() - startTime > _timeoutMs) {
+    ErrorMessage = 5; // Timeout
+    return false;
+  }
+
+  ErrorMessage = Wire.endTransmission();
+  return (ErrorMessage == 0);
 }
 
 template <typename T>
@@ -175,15 +265,35 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
   ErrorMessage = 0;
   yield();
   byteCount = constrain(byteCount, 1, 8);
-  for (uint8_t k = 0; k < length * byteCount; k += min(length * byteCount, WIRE_BUFFER_LENGTH / byteCount)) // Process data in chunks based on the Wire buffer length.
-  {
+
+  uint32_t startTime = millis();
+
+  // for (uint8_t k = 0; k < length * byteCount; k += min(length * byteCount, WIRE_BUFFER_LENGTH / byteCount)) // Process data in chunks based on the Wire buffer length.
+
+  uint16_t totalBytes = (uint16_t)length * byteCount;
+  for (uint16_t k = 0; k < totalBytes; k += min<uint16_t>(totalBytes - k, WIRE_BUFFER_LENGTH)) {
+    // Check timeout before each chunk
+    if (millis() - startTime > _timeoutMs) {
+      ErrorMessage = 5; // Timeout
+      break;
+    }
+
     Wire.beginTransmission(AltAddress);
     Wire.write(regAddr);
     ErrorMessage = Wire.endTransmission();
     if (Success()) {
-      uint8_t readSize = min(length * byteCount - k, WIRE_BUFFER_LENGTH / byteCount);
-      Wire.requestFrom(AltAddress, readSize); //
+      // uint8_t readSize = min(length * byteCount - k, WIRE_BUFFER_LENGTH / byteCount);
+      uint8_t readSize = min<uint16_t>(totalBytes - k, WIRE_BUFFER_LENGTH);
+      Wire.requestFrom(static_cast<uint8_t>(AltAddress), static_cast<size_t>(readSize)); //
+
+      uint32_t readStartTime = millis();
       while (Wire.available() && I2CReadCount < length) {
+        // Check timeout during read
+        if (millis() - readStartTime > _timeoutMs) {
+          ErrorMessage = 5; // Timeout
+          break;
+        }
+
         Data[I2CReadCount] = 0; // Clear the destination value for this word
         uint8_t ByteVal = 0;
         for (int8_t b = byteCount - 1; b >= 0; b--) {
@@ -211,10 +321,20 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
   I2CWriteCount = 0;
   ErrorMessage = 0;
   yield();
+
+  uint32_t startTime = millis();
+
   Wire.beginTransmission(AltAddress);
   Wire.write(regAddr); // send register address
+
   // Write each value, sending ByteC bytes per element.
   for (uint8_t i = 0; i < length; i++) {
+    // Check timeout before each element
+    if (millis() - startTime > _timeoutMs) {
+      ErrorMessage = 5; // Timeout
+      break;
+    }
+
     // Send MSB and LSB according to your defined shift values
     for (int8_t b = ByteC - 1; b >= 0; b--) {
       uint8_t Shift = ReverseByteShift ? (ByteC - 1 - b) * 8 : b * 8;
@@ -222,7 +342,14 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
     }
     I2CWriteCount++;
   }
-  ErrorMessage = Wire.endTransmission();
+
+  // Check timeout before final transmission
+  if (millis() - startTime > _timeoutMs) {
+    ErrorMessage = 5; // Timeout
+  } else {
+    ErrorMessage = Wire.endTransmission();
+  }
+
   return *this;
 }
 
@@ -251,3 +378,21 @@ template Simple_Wire &Simple_Wire::TWrite<int32_t>(uint8_t, uint8_t, uint8_t, ui
 template Simple_Wire &Simple_Wire::TWrite<uint32_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint32_t *);
 template Simple_Wire &Simple_Wire::TWrite<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t *);
 template Simple_Wire &Simple_Wire::TWrite<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t *);
+
+// WriteThenRead template instantiations
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t, uint8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, int8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, uint8_t, int8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint8_t, uint16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, int16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, uint8_t, int16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint8_t, uint32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, int32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, uint8_t, int32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint64_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint8_t, uint64_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, int64_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, uint8_t, int64_t *, uint8_t);
