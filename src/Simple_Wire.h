@@ -279,8 +279,8 @@ public:
 
   uint8_t Find_Address(uint8_t Limit = 128) { return Find_Address(devAddr, Limit); };
   uint8_t Find_Address(uint8_t Address, uint8_t Limit);
-  uint8_t Check_Address() { return Check_Address(devAddr); };
-  uint8_t Check_Address(uint8_t Address);
+  uint8_t Check_Address() { return Check_Address(devAddr, false); };
+  uint8_t Check_Address(uint8_t Address, bool verbose = false);
   uint64_t Value() { return (Val); };
   uint8_t GetErrorMessage() { return ErrorMessage; };
   bool Success(bool TF = true) { return (TF) ? (ErrorMessage == 0) : (ErrorMessage != 0); }
@@ -296,36 +296,36 @@ public:
 
   // ESP32 optimized functions
   template <typename T>
-  Simple_Wire &WriteThenRead(uint8_t regAddr, T *readBuffer, uint8_t readLength);
+  Simple_Wire &TWriteThenRead(uint8_t regAddr, T *readBuffer, uint8_t readLength);
   template <typename T>
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, T *readBuffer, uint8_t readLength);
+  Simple_Wire &TWriteThenRead(uint8_t altAddress, uint8_t regAddr, T *readBuffer, uint8_t readLength);
   Simple_Wire &SetTimeout(uint32_t timeoutMs = 100);
   uint32_t GetTimeout() { return _timeoutMs; };
 
   // WriteThenRead for specific data types
   // 8-bit types
-  Simple_Wire &WriteThenRead(uint8_t regAddr, uint8_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint8_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint8_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint8_t>(altAddress, regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t regAddr, int8_t *readBuffer, uint8_t readLength) { return WriteThenRead<int8_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int8_t *readBuffer, uint8_t readLength) { return WriteThenRead<int8_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, uint8_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint8_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint8_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint8_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, int8_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int8_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int8_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int8_t>(altAddress, regAddr, readBuffer, readLength); };
 
   // 16-bit types
-  Simple_Wire &WriteThenRead(uint8_t regAddr, uint16_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint16_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint16_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint16_t>(altAddress, regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t regAddr, int16_t *readBuffer, uint8_t readLength) { return WriteThenRead<int16_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int16_t *readBuffer, uint8_t readLength) { return WriteThenRead<int16_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, uint16_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint16_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint16_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint16_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, int16_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int16_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int16_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int16_t>(altAddress, regAddr, readBuffer, readLength); };
 
   // 32-bit types
-  Simple_Wire &WriteThenRead(uint8_t regAddr, uint32_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint32_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint32_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint32_t>(altAddress, regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t regAddr, int32_t *readBuffer, uint8_t readLength) { return WriteThenRead<int32_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int32_t *readBuffer, uint8_t readLength) { return WriteThenRead<int32_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, uint32_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint32_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint32_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint32_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, int32_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int32_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int32_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int32_t>(altAddress, regAddr, readBuffer, readLength); };
 
   // 64-bit types
-  Simple_Wire &WriteThenRead(uint8_t regAddr, uint64_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint64_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint64_t *readBuffer, uint8_t readLength) { return WriteThenRead<uint64_t>(altAddress, regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t regAddr, int64_t *readBuffer, uint8_t readLength) { return WriteThenRead<int64_t>(regAddr, readBuffer, readLength); };
-  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int64_t *readBuffer, uint8_t readLength) { return WriteThenRead<int64_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, uint64_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint64_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, uint64_t *readBuffer, uint8_t readLength) { return TWriteThenRead<uint64_t>(altAddress, regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t regAddr, int64_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int64_t>(regAddr, readBuffer, readLength); };
+  Simple_Wire &WriteThenRead(uint8_t altAddress, uint8_t regAddr, int64_t *readBuffer, uint8_t readLength) { return TWriteThenRead<int64_t>(altAddress, regAddr, readBuffer, readLength); };
 };
 
 extern TwoWire Wire;
