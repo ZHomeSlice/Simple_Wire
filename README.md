@@ -8,7 +8,7 @@ A lightweight Arduino library that simplifies I²C (Wire) communication by wrapp
   Provides consistent methods for reading and writing to I²C devices, whether you’re manipulating a single bit or transferring multi-byte arrays.
 
 - **Support for Multiple Data Types**  
-  Read and write functions handle 8-bit, 16-bit, and 32/64-bit integers (both signed and unsigned), plus bit-level access.
+  Read and write functions handle signed and unsigned whole-byte values from 8 through 64 bits, including 24-bit and 40-bit device registers, plus bit-level access. `ReadRaw()` and `WriteRaw()` support an explicit width from 1 through 8 bytes, and signed partial-width reads are sign-extended.
 
 - **Flexible Bit Manipulation**  
   Includes helper methods and macros for reading/writing individual bits while preserving other bits in the register.
@@ -81,10 +81,12 @@ Alternatively, once published to the Arduino Library Manager, you can install it
 
 3. **Bit Order Configuration**  
    ```cpp
-   // Some devices store the MSB in a different position
-   // SetIntMSBPos() can adjust how bits are interpreted.
-   I2C.SetIntMSBPos(true); // or false, depending on the device
+   // false (default): most-significant byte first, as used by INA228/INA238
+   // true: least-significant byte first
+   I2C.SetIntMSBPos(false);
    ```
+
+   Byte-order packing applies to integer helpers such as `ReadInt()`, `ReadU24()`, `ReadU40()`, and `ReadRaw()`. `ReadRegisterBytes()` and `WriteRegisterBytes()` always copy bytes in bus order.
 
 ## Example Macros
 

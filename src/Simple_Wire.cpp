@@ -19,7 +19,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-Version 2.0 3-3-2025 Streamlined, added features and improved performance
+Version 2.1 9-5-2026 Added 40/48/56-bit and generic 1–8 byte register support
 ===============================================
 */
 
@@ -27,6 +27,42 @@ Version 2.0 3-3-2025 Streamlined, added features and improved performance
 #include <Wire.h>
 
 Simple_Wire::Simple_Wire() { // Constructor
+}
+
+// Sign-extend a partial-width value into int64_t.
+// bitWidth 1–63: mask then extend. bitWidth >= 64: return the 64-bit value unchanged.
+int64_t Simple_Wire::SignExtend(uint64_t value, uint8_t bitWidth) {
+  if (bitWidth == 0) {
+    return 0;
+  }
+  if (bitWidth >= 64) {
+    return (int64_t)value;
+  }
+  uint64_t mask = (1ULL << bitWidth) - 1ULL;
+  value &= mask;
+  uint64_t signBit = 1ULL << (bitWidth - 1);
+  if (value & signBit) {
+    value |= ~mask;
+  }
+  return (int64_t)value;
+}
+
+// Pack byteCount bytes from Wire into T using SetIntMSBPos() byte order.
+// Signed types are sign-extended from byteCount * 8 bits.
+template <typename T>
+T Simple_Wire::AssembleFromWire(uint8_t byteCount) {
+  uint64_t assembled = 0;
+  for (int8_t b = byteCount - 1; b >= 0; b--) {
+    uint8_t Shift = ReverseByteShift ? (byteCount - 1 - b) * 8 : b * 8;
+    if (Wire.available()) {
+      uint8_t ByteVal = Wire.read();
+      assembled |= ((uint64_t)ByteVal << Shift);
+    }
+  }
+  if (static_cast<T>(-1) < static_cast<T>(0)) {
+    return static_cast<T>(SignExtend(assembled, (uint8_t)(byteCount * 8)));
+  }
+  return static_cast<T>(assembled);
 }
 
 // When we use Simple_Wire class
@@ -59,23 +95,38 @@ void Simple_Wire::begin(int sdaPin, int sclPin) {
 // ESP32 optimized WriteThenRead with repeated start (template version)
 template <typename T>
 Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t regAddr, T *readBuffer, uint8_t readLength) {
-  return TWriteThenRead(devAddr, regAddr, readBuffer, readLength);
+  return TWriteThenRead(devAddr, regAddr, readBuffer, readLength, (uint8_t)sizeof(T));
 }
 
 template <typename T>
 Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t altAddress, uint8_t regAddr, T *readBuffer, uint8_t readLength) {
+  return TWriteThenRead(altAddress, regAddr, readBuffer, readLength, (uint8_t)sizeof(T));
+}
+
+template <typename T>
+Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t regAddr, T *readBuffer, uint8_t readLength, uint8_t byteCount) {
+  return TWriteThenRead(devAddr, regAddr, readBuffer, readLength, byteCount);
+}
+
+template <typename T>
+Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t altAddress, uint8_t regAddr, T *readBuffer, uint8_t readLength, uint8_t byteCount) {
   if (!_Begin) {
     ErrorMessage = 4; // Not initialized
     return *this;
   }
 
   I2CReadCount = 0;
+  I2CWriteCount = 0;
   ErrorMessage = 0;
+
+  if (byteCount < 1 || byteCount > 8) {
+    ErrorMessage = 4; // Invalid byteCount
+    return *this;
+  }
+
   yield();
 
-  // Calculate byte count for the template type
-  uint8_t byteCount = sizeof(T);
-  uint8_t totalBytes = readLength * byteCount;
+  size_t totalBytes = (size_t)readLength * (size_t)byteCount;
 
   // Write register address with repeated start
   Wire.beginTransmission(altAddress);
@@ -84,23 +135,13 @@ Simple_Wire &Simple_Wire::TWriteThenRead(uint8_t altAddress, uint8_t regAddr, T 
 
   if (Success()) {
     // Request data with timeout
-    Wire.requestFrom(static_cast<uint8_t>(altAddress), static_cast<size_t>(totalBytes), static_cast<bool>(true)); // send STOP after read
+    Wire.requestFrom(static_cast<uint8_t>(altAddress), static_cast<uint8_t>(totalBytes), static_cast<uint8_t>(true)); // send STOP after read
 
     uint32_t startTime = millis();
     uint8_t index = 0;
 
     while (Wire.available() && index < readLength) {
-      readBuffer[index] = 0; // Clear the destination value
-      uint8_t byteVal = 0;
-
-      // Read bytes for this element
-      for (int8_t b = byteCount - 1; b >= 0; b--) {
-        uint8_t shift = ReverseByteShift ? (byteCount - 1 - b) * 8 : b * 8;
-        if (Wire.available()) {
-          byteVal = Wire.read();
-          readBuffer[index] |= ((uint64_t)byteVal << shift);
-        }
-      }
+      readBuffer[index] = AssembleFromWire<T>(byteCount);
       index++;
 
       // Fail fast on timeout
@@ -262,16 +303,25 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
   if (!_Begin)
     return *this;
   I2CReadCount = 0;
+  I2CWriteCount = 0;
   ErrorMessage = 0;
+
+  if (byteCount < 1 || byteCount > 8) {
+    ErrorMessage = 4; // Invalid byteCount
+    return *this;
+  }
+
   yield();
-  byteCount = constrain(byteCount, 1, 8);
 
   uint32_t startTime = millis();
 
-  // for (uint8_t k = 0; k < length * byteCount; k += min(length * byteCount, WIRE_BUFFER_LENGTH / byteCount)) // Process data in chunks based on the Wire buffer length.
+  size_t totalBytes = (size_t)length * (size_t)byteCount;
+  for (size_t k = 0; k < totalBytes;) {
+    size_t readSize = totalBytes - k;
+    if (readSize > WIRE_BUFFER_LENGTH) {
+      readSize = WIRE_BUFFER_LENGTH;
+    }
 
-  uint16_t totalBytes = (uint16_t)length * byteCount;
-  for (uint16_t k = 0; k < totalBytes; k += min<uint16_t>(totalBytes - k, WIRE_BUFFER_LENGTH)) {
     // Check timeout before each chunk
     if (millis() - startTime > _timeoutMs) {
       ErrorMessage = 5; // Timeout
@@ -282,9 +332,7 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
     Wire.write(regAddr);
     ErrorMessage = Wire.endTransmission();
     if (Success()) {
-      // uint8_t readSize = min(length * byteCount - k, WIRE_BUFFER_LENGTH / byteCount);
-      uint8_t readSize = min<uint16_t>(totalBytes - k, WIRE_BUFFER_LENGTH);
-      Wire.requestFrom(static_cast<uint8_t>(AltAddress), static_cast<size_t>(readSize)); //
+      Wire.requestFrom(static_cast<uint8_t>(AltAddress), readSize); //
 
       uint32_t readStartTime = millis();
       while (Wire.available() && I2CReadCount < length) {
@@ -294,18 +342,11 @@ Simple_Wire &Simple_Wire::TRead(uint8_t AltAddress, uint8_t regAddr, uint8_t len
           break;
         }
 
-        Data[I2CReadCount] = 0; // Clear the destination value for this word
-        uint8_t ByteVal = 0;
-        for (int8_t b = byteCount - 1; b >= 0; b--) {
-          uint8_t Shift = ReverseByteShift ? (byteCount - 1 - b) * 8 : b * 8;
-          if (Wire.available()) {
-            ByteVal = Wire.read();
-            Data[I2CReadCount] |= ((uint64_t)ByteVal << Shift);
-          }
-        }
+        Data[I2CReadCount] = AssembleFromWire<T>(byteCount);
         I2CReadCount++;
       }
     }
+    k += readSize;
   }
 
   Val = (uint64_t)Data[0]; // assign the first value to Val. use .Value() to retrieve the value and dont forget to cast it back to the type you are getting.
@@ -319,7 +360,14 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
   if (!_Begin)
     return *this;
   I2CWriteCount = 0;
+  I2CReadCount = 0;
   ErrorMessage = 0;
+
+  if (ByteC < 1 || ByteC > 8) {
+    ErrorMessage = 4; // Invalid byteCount
+    return *this;
+  }
+
   yield();
 
   uint32_t startTime = millis();
@@ -353,11 +401,32 @@ Simple_Wire &Simple_Wire::TWrite(uint8_t AltAddress, uint8_t regAddr, uint8_t le
   return *this;
 }
 
+Simple_Wire &Simple_Wire::ReadRegisterBytes(uint8_t AltAddress, uint8_t regAddr, uint8_t *buffer, size_t byteCount) {
+  if (byteCount == 0 || byteCount > 255) {
+    I2CReadCount = 0;
+    I2CWriteCount = 0;
+    ErrorMessage = 4;
+    return *this;
+  }
+  return TRead<uint8_t>(AltAddress, regAddr, (uint8_t)byteCount, 1, buffer);
+}
+
+Simple_Wire &Simple_Wire::WriteRegisterBytes(uint8_t AltAddress, uint8_t regAddr, uint8_t *buffer, size_t byteCount) {
+  if (byteCount == 0 || byteCount > 255) {
+    I2CReadCount = 0;
+    I2CWriteCount = 0;
+    ErrorMessage = 4;
+    return *this;
+  }
+  return TWrite<uint8_t>(AltAddress, regAddr, (uint8_t)byteCount, 1, buffer);
+}
+
 // Read
 template Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t *);
 template Simple_Wire &Simple_Wire::ReadBitTemplate(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t *);
 template Simple_Wire &Simple_Wire::ReadBitMaskTemplate(uint8_t, uint8_t, uint8_t, uint8_t *);
 template Simple_Wire &Simple_Wire::ReadBitMaskTemplate(uint8_t, uint8_t, uint16_t, uint16_t *);
+template Simple_Wire &Simple_Wire::TRead<int8_t>(uint8_t, uint8_t, uint8_t, uint8_t, int8_t *);
 template Simple_Wire &Simple_Wire::TRead<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t *);
 template Simple_Wire &Simple_Wire::TRead<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t *);
 template Simple_Wire &Simple_Wire::TRead<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t *);
@@ -371,6 +440,7 @@ template Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t, uint8_t, uint8_t, u
 template Simple_Wire &Simple_Wire::WriteBitTemplate(uint8_t, uint8_t, uint8_t, uint8_t, bool, uint16_t);
 template Simple_Wire &Simple_Wire::WriteBitMaskTemplate(uint8_t, uint8_t, bool, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::WriteBitMaskTemplate(uint8_t, uint8_t, bool, uint16_t, uint16_t);
+template Simple_Wire &Simple_Wire::TWrite<int8_t>(uint8_t, uint8_t, uint8_t, uint8_t, int8_t *);
 template Simple_Wire &Simple_Wire::TWrite<uint8_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t *);
 template Simple_Wire &Simple_Wire::TWrite<int16_t>(uint8_t, uint8_t, uint8_t, uint8_t, int16_t *);
 template Simple_Wire &Simple_Wire::TWrite<uint16_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint16_t *);
@@ -379,20 +449,45 @@ template Simple_Wire &Simple_Wire::TWrite<uint32_t>(uint8_t, uint8_t, uint8_t, u
 template Simple_Wire &Simple_Wire::TWrite<int64_t>(uint8_t, uint8_t, uint8_t, uint8_t, int64_t *);
 template Simple_Wire &Simple_Wire::TWrite<uint64_t>(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t *);
 
-// WriteThenRead template instantiations
+// WriteThenRead template instantiations (3-arg uses sizeof(T); 4-arg takes explicit byteCount)
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t, uint8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint8_t>(uint8_t, uint8_t, uint8_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, int8_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, uint8_t, int8_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, int8_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int8_t>(uint8_t, uint8_t, int8_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint16_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint8_t, uint16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint16_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint16_t>(uint8_t, uint8_t, uint16_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, int16_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, uint8_t, int16_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, int16_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int16_t>(uint8_t, uint8_t, int16_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint32_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint8_t, uint32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint32_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint32_t>(uint8_t, uint8_t, uint32_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, int32_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, uint8_t, int32_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, int32_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int32_t>(uint8_t, uint8_t, int32_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint64_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint8_t, uint64_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint64_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<uint64_t>(uint8_t, uint8_t, uint64_t *, uint8_t, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, int64_t *, uint8_t);
 template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, uint8_t, int64_t *, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, int64_t *, uint8_t, uint8_t);
+template Simple_Wire &Simple_Wire::TWriteThenRead<int64_t>(uint8_t, uint8_t, int64_t *, uint8_t, uint8_t);
+
+template int8_t Simple_Wire::AssembleFromWire<int8_t>(uint8_t);
+template uint8_t Simple_Wire::AssembleFromWire<uint8_t>(uint8_t);
+template int16_t Simple_Wire::AssembleFromWire<int16_t>(uint8_t);
+template uint16_t Simple_Wire::AssembleFromWire<uint16_t>(uint8_t);
+template int32_t Simple_Wire::AssembleFromWire<int32_t>(uint8_t);
+template uint32_t Simple_Wire::AssembleFromWire<uint32_t>(uint8_t);
+template int64_t Simple_Wire::AssembleFromWire<int64_t>(uint8_t);
+template uint64_t Simple_Wire::AssembleFromWire<uint64_t>(uint8_t);
